@@ -49,6 +49,34 @@ python main.py --from-csv --live
 python main.py --live
 ```
 
+## Fetching invoices from Gmail
+
+`gmail_fetcher.py` connects to your Gmail account via OAuth and downloads PDF attachments from vendor emails into `gmail_invoices/` by default.
+
+```bash
+# Download all PDF attachments from vendor emails
+python gmail_fetcher.py
+
+# Generate vendor payments JSON files used by the consolidated payment pre-pass
+python gmail_fetcher.py --vendor-a-receipts   # writes vendor_a_payments.json
+python gmail_fetcher.py --vendor-b-receipts   # writes vendor_b_payments.json
+python gmail_fetcher.py --vendor-c-receipts   # writes vendor_c_payments.json
+```
+
+On first run, Gmail OAuth opens a browser window for authorization. The token is cached to `gmail_token.json` and reused on subsequent runs.
+
+By default `gmail_fetcher.py` saves PDFs to `gmail_invoices/`. If you use that folder instead of `invoices/`, update `INVOICE_DIR` at the top of `main.py`:
+
+```python
+INVOICE_DIR = "gmail_invoices"
+```
+
+## QuickBooks attachment
+
+`qb_attach.py` is fully implemented and is called automatically during `--live` runs. It uploads each matched invoice PDF to QBO and links it to the corresponding expense transaction using the Attachable API.
+
+**Important:** This requires Intuit **production** OAuth credentials. Sandbox credentials cannot access production company data. To obtain production credentials, complete app verification at [developer.intuit.com](https://developer.intuit.com).
+
 ## Configuration
 
 ### Vendor list (`extract.py`)
@@ -121,5 +149,7 @@ Transactions with a known QB vendor name (`_KNOWN_QB_VENDOR_RE`) require at leas
 
 If using `--from-csv`, export from QuickBooks Online via:
 **Reports → Transaction List by Date → Export to CSV**
+
+Rename the exported file to `transactions.csv` before running, or update `QB_CSV_PATH` at the top of `main.py` to match your filename.
 
 The loader supports both the current and legacy QBO export column layouts.

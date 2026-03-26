@@ -14,8 +14,8 @@ SCOPES = ["https://www.googleapis.com/auth/gmail.readonly"]
 TOKEN_FILE = "gmail_token.json"
 OUTPUT_DIR = "gmail_invoices"
 VENDOR_A_PAYMENTS_FILE = "vendor_a_payments.json"
-ODEKO_PAYMENTS_FILE = "vendor_c_payments.json"
 VENDOR_B_PAYMENTS_FILE = "vendor_b_payments.json"
+VENDOR_C_PAYMENTS_FILE = "vendor_c_payments.json"
 
 
 def _find_client_secret():
@@ -394,14 +394,14 @@ def fetch_vendor_c_payment_receipts():
         if not page_token:
             break
 
-    with open(ODEKO_PAYMENTS_FILE, "w") as f:
+    with open(VENDOR_C_PAYMENTS_FILE, "w") as f:
         json.dump(receipts, f, indent=2)
 
-    print(f"Saved {len(receipts)} Vendor C receipts to {ODEKO_PAYMENTS_FILE}")
+    print(f"Saved {len(receipts)} Vendor C receipts to {VENDOR_C_PAYMENTS_FILE}")
     return receipts
 
 
-def _parse_chefs_receipt(body, msg_date):
+def _parse_vendor_b_receipt(body, msg_date):
     """
     Parse a Vendor B transaction receipt email body.
 
@@ -443,7 +443,7 @@ def _parse_chefs_receipt(body, msg_date):
     return {"date": date_str, "amount": amount, "order_id": order_id}
 
 
-def fetch_chefs_payment_receipts():
+def fetch_vendor_b_payment_receipts():
     """
     Search Gmail for Vendor B transaction receipt emails (body only).
     Subject: "The Vendor B Transaction Receipt"
@@ -489,7 +489,7 @@ def fetch_chefs_payment_receipts():
                     pass
 
             body = _get_body_text(msg.get("payload", {}))
-            receipt = _parse_chefs_receipt(body, msg_date)
+            receipt = _parse_vendor_b_receipt(body, msg_date)
             receipt["message_id"] = msg_ref["id"]
             receipt["subject"] = headers.get("Subject", "")
 
@@ -511,19 +511,19 @@ def fetch_chefs_payment_receipts():
 if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser()
-    parser.add_argument("--vendor_a-receipts", action="store_true",
+    parser.add_argument("--vendor-a-receipts", action="store_true",
                         help="Fetch Vendor A payment receipt emails (body only)")
-    parser.add_argument("--vendor_c-receipts", action="store_true",
-                        help="Fetch Vendor C payment receipt emails (body only)")
-    parser.add_argument("--chefs-receipts", action="store_true",
+    parser.add_argument("--vendor-b-receipts", action="store_true",
                         help="Fetch Vendor B transaction receipt emails (body only)")
+    parser.add_argument("--vendor-c-receipts", action="store_true",
+                        help="Fetch Vendor C payment receipt emails (body only)")
     args = parser.parse_args()
 
     if args.vendor_a_receipts:
         fetch_vendor_a_payment_receipts()
+    elif args.vendor_b_receipts:
+        fetch_vendor_b_payment_receipts()
     elif args.vendor_c_receipts:
         fetch_vendor_c_payment_receipts()
-    elif args.chefs_receipts:
-        fetch_chefs_payment_receipts()
     else:
         fetch_pdf_attachments()
