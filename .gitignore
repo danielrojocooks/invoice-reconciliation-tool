@@ -1,0 +1,28 @@
+# Credentials — never commit these
+.env
+client_secret*.json
+gmail_token.json
+qb_token*.json
+token*.json
+
+# Real transaction and invoice data
+transactions.csv
+invoices/
+audit_package/
+
+# Sample payments files (contain real vendor names if populated from live data)
+vendor_a_payments.json
+vendor_b_payments.json
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+dist/
+build/
+
+# OS
+.DS_Store
+Thumbs.db

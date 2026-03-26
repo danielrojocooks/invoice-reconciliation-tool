@@ -1,0 +1,24 @@
+{
+  "_comment": "Manual overrides keyed by transaction ID (csv_N or QB transaction ID).",
+  "_comment2": "Use 'replace: true' to discard any auto-matched invoice and use only the files listed here.",
+
+  "csv_5": {
+    "note": "Cash withdrawal — covers contractor pay and incidentals",
+    "attachments": [
+      "invoices/contractor_schedule_week_of_2025-03-17.pdf",
+      "invoices/petty_cash_receipts_march.pdf"
+    ]
+  },
+  "csv_12": {
+    "note": "Vendor A payment 4/29/2025 — two invoices plus credit applied",
+    "replace": true,
+    "attachments": [
+      "invoices/vendor_a_INV-020.pdf",
+      "invoices/vendor_a_INV-021.pdf"
+    ]
+  },
+  "csv_18": {
+    "note": "Debit card purchase — receipt not available, bank memo attached",
+    "attachments": ["invoices/bank_memo_csv_18.pdf"]
+  }
+}
