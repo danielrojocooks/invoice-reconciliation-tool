@@ -115,7 +115,7 @@ For vendors that send one payment covering multiple invoices, create a payments 
 
 ### Manual overrides (`overrides.json`)
 
-For transactions that can't be auto-matched, add an entry to `overrides.json`:
+Copy `overrides.example.json` to `overrides.json` (gitignored) and add entries for transactions that can't be auto-matched:
 
 ```json
 {
