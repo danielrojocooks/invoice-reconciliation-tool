@@ -16,6 +16,20 @@ Scans a folder of vendor invoice PDFs, extracts amount/date/vendor using text ex
    - `matched/` — copies of all matched invoice PDFs in one flat folder
    - `orphan_invoices.csv` — PDFs that could not be matched to any transaction
 
+## Module structure
+
+| File | Purpose |
+|------|---------|
+| `main.py` | Thin orchestrator — loads config, wires modules, runs pipeline |
+| `loader.py` | Loads QB transactions from CSV export or API |
+| `extractor.py` | Extracts amount/date/vendor from invoice PDFs (text + OCR fallback) |
+| `matcher.py` | Matches invoices to transactions; handles batches and consolidated payments |
+| `reporter.py` | Writes audit package (HTML, XLSX, orphan CSV) and console preview |
+| `state.py` | Idempotency — tracks already-attached files in `state/processed.json` |
+| `qb_attach.py` | Uploads invoice PDFs to QBO and links them to expense transactions |
+| `gmail_fetcher.py` | Downloads vendor invoice PDFs from Gmail via OAuth |
+| `qb.py` / `qb_token.py` | QB OAuth2 token management |
+
 ## Setup
 
 ```bash
@@ -27,7 +41,7 @@ For OCR support on scanned PDFs (image-only):
 - **macOS**: `brew install tesseract poppler`
 - **Ubuntu**: `sudo apt install tesseract-ocr poppler-utils`
 
-Update the paths at the top of `extract.py` if Tesseract/Poppler are not on your PATH.
+Update the paths at the top of `extractor.py` if Tesseract/Poppler are not on your PATH.
 
 ### QuickBooks & Gmail credentials
 
@@ -39,15 +53,14 @@ Update the paths at the top of `extract.py` if Tesseract/Poppler are not on your
 
 ```bash
 # Dry run — preview matches, nothing written to disk
-python main.py
-
-# Dry run using a CSV export instead of the QB API
 python main.py --from-csv
 
 # Live — write audit_package/, attach invoices to QB
 python main.py --from-csv --live
 python main.py --live
 ```
+
+Each run writes a timestamped log to `logs/run_YYYYMMDD_HHMMSS.log`.
 
 ## Fetching invoices from Gmail
 
@@ -65,11 +78,7 @@ python gmail_fetcher.py --vendor-c-receipts   # writes vendor_c_payments.json
 
 On first run, Gmail OAuth opens a browser window for authorization. The token is cached to `gmail_token.json` and reused on subsequent runs.
 
-By default `gmail_fetcher.py` saves PDFs to `gmail_invoices/`. If you use that folder instead of `invoices/`, update `INVOICE_DIR` at the top of `main.py`:
-
-```python
-INVOICE_DIR = "gmail_invoices"
-```
+By default `gmail_fetcher.py` saves PDFs to `gmail_invoices/`. Update `invoice_dir` in `config.yaml` to match whichever folder you use.
 
 ## QuickBooks attachment
 
@@ -77,41 +86,42 @@ INVOICE_DIR = "gmail_invoices"
 
 **Important:** This requires Intuit **production** OAuth credentials. Sandbox credentials cannot access production company data. To obtain production credentials, complete app verification at [developer.intuit.com](https://developer.intuit.com).
 
+Attachments that have already been uploaded are tracked in `state/processed.json`. Re-running `--live` skips any invoice that was successfully attached in a prior run.
+
 ## Configuration
 
-### Vendor list (`extract.py`)
+All settings live in `config.yaml`. Copy and edit it to match your environment — no code changes needed.
 
-The `_KNOWN_VENDORS` list tells the OCR extractor which vendor names to look for in invoice text. Update it with your own vendors:
+```yaml
+invoice_dir: "invoices"           # folder containing vendor invoice PDFs
+audit_dir: "audit_package"        # output folder
+qb_csv_path: "transactions.csv"   # QBO CSV export filename
 
-```python
-_KNOWN_VENDORS = [
-    "Vendor A",
-    "Vendor B",
-    "Bakery Co",
-]
+include_categories:               # only include QB Expense rows matching these
+  - "Cost of Goods Sold"
+  - "Supplies"
+
+known_qb_vendors:                 # vendors that require a passing vendor score
+  - "Vendor A"
+  - "Vendor B"
+
+known_invoice_vendors:            # vendor names to recognize in invoice text
+  - "Vendor A"
+  - "Vendor B"
+
+vendor_aliases:                   # normalize alternate names before matching
+  - pattern: "vendor\\s*b"
+    canonical: "Vendor B"
+
+vendor_score_strong: 80           # score >= this → High confidence
+vendor_score_fuzzy: 50            # score >= this → counts toward Medium confidence
+amount_exact_cents: 0.01          # tolerance for exact amount match
+date_max_days: 60                 # invoice must be within this many days of QB txn
 ```
 
-### Vendor aliases (`main.py`)
+### Consolidated payment vendors
 
-If a vendor appears under multiple names in QB or on invoices, add an alias to normalize them before matching:
-
-```python
-_VENDOR_ALIASES = [
-    (re.compile(r"vendor\s*b", re.IGNORECASE), "Vendor B"),
-]
-```
-
-### Transaction categories (`main.py`)
-
-Only transactions whose QB account category matches `_INCLUDE_CATEGORIES` are included:
-
-```python
-_INCLUDE_CATEGORIES = {"Cost of Goods Sold", "Supplies"}
-```
-
-### Consolidated payment vendors (`main.py`)
-
-For vendors that send one payment covering multiple invoices, create a payments JSON file (see `vendor_a_payments.json` for the format) and point `VENDOR_A_PAYMENTS_FILE` to it. The matcher will use the payment total to find the QB transaction and attach all individual invoice PDFs.
+For vendors that send one payment covering multiple invoices, create a payments JSON file and point `vendor_a_payments_file` (or `vendor_b_payments_file`) to it in `config.yaml`. The matcher uses the payment total to find the QB transaction and attaches all individual invoice PDFs.
 
 ### Manual overrides (`overrides.json`)
 
@@ -143,13 +153,13 @@ Copy `overrides.example.json` to `overrides.json` (gitignored) and add entries f
 | **Medium** | Amount matches + date in range, OR amount matches + fuzzy vendor |
 | **Low** | Amount matches only |
 
-Transactions with a known QB vendor name (`_KNOWN_QB_VENDOR_RE`) require at least a fuzzy vendor match (score ≥ 50) before a match is accepted.
+Transactions with a known QB vendor name require at least a fuzzy vendor match (score ≥ 50) before a match is accepted.
 
 ## CSV export format
 
 If using `--from-csv`, export from QuickBooks Online via:
 **Reports → Transaction List by Date → Export to CSV**
 
-Rename the exported file to `transactions.csv` before running, or update `QB_CSV_PATH` at the top of `main.py` to match your filename.
+Rename the exported file to `transactions.csv` (or set `qb_csv_path` in `config.yaml`).
 
 The loader supports both the current and legacy QBO export column layouts.

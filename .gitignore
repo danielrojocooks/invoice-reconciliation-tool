@@ -11,6 +11,10 @@ invoices/
 gmail_invoices/
 audit_package/
 
+# Runtime output
+logs/
+state/
+
 # Southside-specific files (or any client-named exports)
 Southside*
 

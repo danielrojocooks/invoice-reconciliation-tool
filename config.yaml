@@ -1,0 +1,73 @@
+# Invoice Attach Bot — configuration
+# All business-specific settings live here.
+# Copy this file as-is; edit values to match your environment.
+
+# ---------------------------------------------------------------------------
+# Paths
+# ---------------------------------------------------------------------------
+invoice_dir: "invoices"          # folder containing vendor invoice PDFs
+audit_dir: "audit_package"       # output folder for summary + matched PDFs
+qb_csv_path: "transactions.csv"  # QBO CSV export filename
+
+# ---------------------------------------------------------------------------
+# Transaction filtering
+# ---------------------------------------------------------------------------
+# Only QB Expense rows whose account category contains one of these strings
+# are included. Add or remove categories to match your chart of accounts.
+include_categories:
+  - "Cost of Goods Sold"
+  - "Supplies"
+
+# ---------------------------------------------------------------------------
+# Vendor configuration
+# ---------------------------------------------------------------------------
+# QB transactions whose payee matches one of these names require a passing
+# vendor score before an invoice match is accepted.
+known_qb_vendors:
+  - "Vendor A"
+  - "Vendor B"
+  - "Vendor C"
+  - "Coffee Supplier"
+  - "Bakery Co"
+
+# Known vendor names for the OCR extractor to recognize in invoice text.
+# Extend this list with your own vendors.
+known_invoice_vendors:
+  - "Vendor A"
+  - "Vendor B"
+  - "Vendor C"
+  - "Coffee Supplier"
+  - "Bakery Co"
+
+# Vendor aliases: normalize alternate names to a canonical form before matching.
+# Each entry: {pattern: "<regex>", canonical: "<name>"}
+vendor_aliases:
+  - pattern: "vendor\\s*b"
+    canonical: "Vendor B"
+
+# ---------------------------------------------------------------------------
+# Matching thresholds
+# ---------------------------------------------------------------------------
+vendor_score_strong: 80          # score >= this → High confidence (with date)
+vendor_score_fuzzy: 50           # score >= this → contributes to Medium confidence
+
+amount_exact_cents: 0.01         # tolerance for "exact" amount match ($0.01)
+amount_near_pct: 0.005           # 0.5% — near-exact, counts as non-exact match
+amount_tolerance_pct: 0.035      # 3.5% — used for vendors with processing fees
+
+date_max_days: 60                # invoice must be within this many days before the QB txn
+
+# ---------------------------------------------------------------------------
+# Batch matching
+# ---------------------------------------------------------------------------
+batch_max_size: 3                # max invoices to combine in a batch match
+batch_date_window_days: 7        # all invoices in a batch must be within this date range
+
+# ---------------------------------------------------------------------------
+# Consolidated payment pre-passes
+# ---------------------------------------------------------------------------
+# JSON files mapping vendor payments to individual invoice amounts.
+# Leave as-is or point to your own files. The pre-pass is skipped if the file
+# does not exist.
+vendor_a_payments_file: "vendor_a_payments.json"
+vendor_b_payments_file: "vendor_b_payments.json"
